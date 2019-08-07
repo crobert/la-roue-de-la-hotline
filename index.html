@@ -1,0 +1,192 @@
+﻿<!--
+    Winhweel.js basic code wheel example by Douglas McKechie @ www.dougtesting.net
+    See website for tutorials and other documentation.
+
+    The MIT License (MIT)
+
+    Copyright (c) 2016 Douglas McKechie
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+-->
+<html>
+    <head>
+        <title>HTML5 Canvas Winning Wheel</title>
+        <link rel="stylesheet" href="misc/main.css" type="text/css" />
+        <script type="text/javascript" src="./Winwheel.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js"></script>
+    </head>
+    <body>
+        <div align="center">
+            <h1>Who's in charge of the ligne chaude today ? </h1>
+            <br />
+            <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                    <td>
+                        <div class="power_controls">
+                            <br />
+                            <img id="spin_button" src="misc/spin_off.png" alt="Spin" onClick="startSpin();" />
+                            <br /><br />                          
+                        </div>
+                    </td>
+                    <td width="318" height="418" class="the_wheel" align="center" valign="center">
+                        <canvas id="canvas" width="315" height="418">
+                            <p style="{color: white}" align="center">Sorry, your browser doesn't support canvas. Please try another.</p>
+                        </canvas>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <script>
+			/*let listBizDevTeam = [
+			{'nom':"Cédric", 'valeur':10, 'couleur':'#F07D88'},
+			{'nom':"Luc", 'valeur':10, 'couleur':'#B0A923'},
+			{'nom':"Simon", 'valeur':10, 'couleur':'#7de6ef'},
+			{'nom':"J-R", 'valeur':12, 'couleur':'#eae56f'}
+			]; */
+			
+			let listBizDevTeam = [{"nom":"Cédric","valeur":10,"couleur":"#F07D88"},{"nom":"Luc","valeur":10,"couleur":"#B0A923"},{"nom":"Simon","valeur":10,"couleur":"#026802"},{"nom":"J-R","valeur":10,"couleur":"#33BAB1"}];
+			
+			
+            // Create new wheel object specifying the parameters at creation time.
+            let theWheel = new Winwheel({
+                'numSegments'       : listBizDevTeam.length,         // Specify number of segments.
+                'outerRadius'       : 150,       // Set outer radius so wheel fits inside the background.
+                'textFontSize'      : 28,        // Set text options as desired.
+                //'textOrientation'   : 'curved',
+                'textAlignment'     : 'center',
+                //'textMargin'        : 5,
+                'textFontFamily'    : 'monospace',
+                'textLineWidth'     : 2,
+                'segments'     :                // Define segments.
+                computeSegments(),
+                'animation' :                   // Specify the animation to use.
+                {
+                    'type'     : 'spinToStop',
+                    'duration' : 15,     // Duration in seconds.
+                    'spins'    : 15,     // Number of complete spins.
+                    'callbackFinished' : alertPrize,
+                    'callbackSound'    : playSound,   // Function to call when the tick sound is to be triggered.
+                    'soundTrigger'     : 'segment'        // Specify segments are to trigger the sound, the other option is 'pin'.
+                }
+            });
+
+           
+            // Vars used by the code in this page to do power controls.
+            let wheelPower    = 0;
+            let wheelSpinning = false;
+
+            // -------------------------------------------------------
+            // Click handler for spin button.
+            // -------------------------------------------------------
+            function startSpin()
+            {
+				// Ensure that spinning can't be clicked again while already running.
+                if (wheelSpinning == false) {    
+					resetWheel();
+                    // Disable the spin button so can't click again while wheel is spinning.
+                    document.getElementById('spin_button').src       = "misc/spin_off.png";
+                    document.getElementById('spin_button').className = "";
+
+                    // Begin the spin animation by calling startAnimation on the wheel object.
+                    theWheel.startAnimation();
+
+                    // Set to true so that power can't be changed and spin button re-enabled during
+                    // the current animation. The user will have to reset before spinning again.
+                    wheelSpinning = true;
+                }
+            }
+			// -----------------------------------------------------------------
+            // This function is called when the segment under the prize pointer changes
+            // we can play a small tick sound here like you would expect on real prizewheels.
+            // -----------------------------------------------------------------
+            let audio = new Audio('misc/tick.mp3');  // Create audio object and load tick.mp3 file.
+
+            function playSound()
+            {
+                // Stop and rewind the sound if it already happens to be playing.
+                audio.pause();
+                audio.currentTime = 0;
+
+                // Play the sound.
+                audio.play();
+            }
+            // -------------------------------------------------------
+            // Function for reset button.
+            // -------------------------------------------------------
+            function resetWheel()
+            {
+                theWheel.stopAnimation(false);  // Stop the animation, false as param so does not call callback function.
+                theWheel.rotationAngle = 0;     // Re-set the wheel angle to 0 degrees.
+                theWheel.draw();                // Call draw to render changes to the wheel.
+
+                wheelSpinning = false;          // Reset to false to power buttons and spin can be clicked again.
+            }
+
+            // -------------------------------------------------------
+            // Called when the spin animation has finished by the callback feature of the wheel because I specified callback in the parameters.
+            // note the indicated segment is passed in as a parmeter as 99% of the time you will want to know this to inform the user of their prize.
+            // -------------------------------------------------------
+            function alertPrize(indicatedSegment)
+            {
+                // Do basic alert of the segment text. You would probably want to do something more interesting with this information.
+                //alert("The wheel stopped on " + indicatedSegment.text);
+                wheelSpinning = false;  
+                var nbPersonne = listBizDevTeam.length;
+                //var ratio = 1/(nbPersonne-1);
+                
+				var winner = theWheel.getIndicatedSegmentNumber();
+				for (let x = 1; x < theWheel.segments.length; x ++) {
+					if(x == winner){
+						listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur - nbPersonne +1;
+					}else{
+						listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur + 1;						
+					}
+				}
+				//à récupérer pour mettre à jour la variable globale en haut pour la prochaine fois
+				console.log(JSON.stringify(listBizDevTeam));		
+            }
+            
+            function computeSegments(){
+				var mySegments =[];
+				var nbCandidats = listBizDevTeam.length;
+				var nbPoints = 0;
+				var totalPourcentage = 0;
+				
+				for(var j=0; j<listBizDevTeam.length; j++){
+					nbPoints +=listBizDevTeam[j].valeur;
+				}
+				
+				for(var j=0; j<listBizDevTeam.length; j++){
+					if(j <listBizDevTeam.length-1){
+						var pourcentage = (listBizDevTeam[j].valeur/nbPoints)*360;
+					}else{
+						var pourcentage = (360-totalPourcentage);
+					}
+					var candidat = {'text':listBizDevTeam[j].nom, 'size': pourcentage, 'fillStyle' : listBizDevTeam[j].couleur, 'id':j}
+					mySegments.push(candidat);
+					totalPourcentage+=pourcentage;
+				}
+				return mySegments;
+			}
+            
+        </script>
+    </body>
+</html>
+<!--file:///C:/Users/crced/Documents/dev/hotline/index.html#
+http://dougtesting.net/winwheel/docs/tut5_add_remove_segments-->
