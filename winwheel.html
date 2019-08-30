@@ -26,10 +26,10 @@
 -->
 <html>
     <head>
-        <title>HTML5 Canvas Winning Wheel</title>
+        <title>La roue de la ligne chaude</title>
         <link rel="stylesheet" href="misc/main.css" type="text/css" />
-        <script type="text/javascript" src="./Winwheel.js"></script>
-        <script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js"></script>
+        <script type="text/javascript" src="./misc/Winwheel.js"></script>
+        <script type="text/javascript" src="./misc/TweenMax.min.js"></script><!--http://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js -->
     </head>
     <body>
         <div align="center">
@@ -41,7 +41,8 @@
                         <div class="power_controls">
                             <br />
                             <img id="spin_button" src="misc/spin_off.png" alt="Spin" onClick="startSpin();" />
-                            <br /><br />                          
+                            <br /><br />
+                            <img id="spin_button" src="misc/spin_on.png" alt="Spin" onClick="createWheel();" />
                         </div>
                     </td>
                     <td width="318" height="418" class="the_wheel" align="center" valign="center">
@@ -53,39 +54,37 @@
             </table>
         </div>
         <script>
-			/*let listBizDevTeam = [
-			{'nom':"Cédric", 'valeur':10, 'couleur':'#F07D88'},
-			{'nom':"Luc", 'valeur':10, 'couleur':'#B0A923'},
-			{'nom':"Simon", 'valeur':10, 'couleur':'#7de6ef'},
-			{'nom':"J-R", 'valeur':12, 'couleur':'#eae56f'}
-			]; */
+			const mode = "NO_DB";
+			let theWheel; 
+			let listBizDevTeam;
+			const url = "http://localhost:81/api/users/hotline";	
+  			getUsers();
+			//[{"id":1,"first_name":"C","last_name":"R","wheel_value":20,"color":"#F07D88"},{"id":2,"first_name":"s","last_name":"r","wheel_value":7,"color":"#FFF00F"},{"id":3,"first_name":"JR","last_name":"C","wheel_value":9,"color":"#F00FFF"}]
 			
-			let listBizDevTeam = [{"nom":"Cédric","valeur":10,"couleur":"#F07D88"},{"nom":"Luc","valeur":10,"couleur":"#B0A923"},{"nom":"Simon","valeur":10,"couleur":"#026802"},{"nom":"J-R","valeur":10,"couleur":"#33BAB1"}];
-			
-			
-            // Create new wheel object specifying the parameters at creation time.
-            let theWheel = new Winwheel({
-                'numSegments'       : listBizDevTeam.length,         // Specify number of segments.
-                'outerRadius'       : 150,       // Set outer radius so wheel fits inside the background.
-                'textFontSize'      : 28,        // Set text options as desired.
-                //'textOrientation'   : 'curved',
-                'textAlignment'     : 'center',
-                //'textMargin'        : 5,
-                'textFontFamily'    : 'monospace',
-                'textLineWidth'     : 2,
-                'segments'     :                // Define segments.
-                computeSegments(),
-                'animation' :                   // Specify the animation to use.
-                {
-                    'type'     : 'spinToStop',
-                    'duration' : 15,     // Duration in seconds.
-                    'spins'    : 15,     // Number of complete spins.
-                    'callbackFinished' : alertPrize,
-                    'callbackSound'    : playSound,   // Function to call when the tick sound is to be triggered.
-                    'soundTrigger'     : 'segment'        // Specify segments are to trigger the sound, the other option is 'pin'.
-                }
-            });
-
+			function createWheel(){
+				// Create new wheel object specifying the parameters at creation time.
+				theWheel = new Winwheel({
+					'numSegments'       : listBizDevTeam.length,         // Specify number of segments.
+					'outerRadius'       : 150,       // Set outer radius so wheel fits inside the background.
+					'textFontSize'      : 28,        // Set text options as desired.
+					//'textOrientation'   : 'curved',
+					'textAlignment'     : 'center',
+					//'textMargin'        : 5,
+					'textFontFamily'    : 'monospace',
+					'textLineWidth'     : 2,
+					'segments'     :                // Define segments.
+					computeSegments(),
+					'animation' :                   // Specify the animation to use.
+					{
+						'type'     : 'spinToStop',
+						'duration' : 2,//15,     // Duration in seconds.
+						'spins'    : 2,//15,     // Number of complete spins.
+						'callbackFinished' : alertPrize,
+						'callbackSound'    : playSound,   // Function to call when the tick sound is to be triggered.
+						'soundTrigger'     : 'segment'        // Specify segments are to trigger the sound, the other option is 'pin'.
+					}
+				});
+			}
            
             // Vars used by the code in this page to do power controls.
             let wheelPower    = 0;
@@ -147,19 +146,36 @@
                 // Do basic alert of the segment text. You would probably want to do something more interesting with this information.
                 //alert("The wheel stopped on " + indicatedSegment.text);
                 wheelSpinning = false;  
-                var nbPersonne = listBizDevTeam.length;
+                let nbPersonne = listBizDevTeam.length;
                 //var ratio = 1/(nbPersonne-1);
-                
+                let winnerId; 
+				let participantsID = [];
 				var winner = theWheel.getIndicatedSegmentNumber();
 				for (let x = 1; x < theWheel.segments.length; x ++) {
 					if(x == winner){
-						listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur - nbPersonne +1;
+						winnerId = theWheel.segments[x].id;
+						//listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur - nbPersonne +1;
 					}else{
-						listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur + 1;						
+						participantsID.push( theWheel.segments[x].id);
+						//listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur + 1;						
 					}
 				}
-				//à récupérer pour mettre à jour la variable globale en haut pour la prochaine fois
-				console.log(JSON.stringify(listBizDevTeam));		
+				if(mode !== "NO_DB"){
+					let xhr = new XMLHttpRequest();
+					xhr.open('POST', url, true);
+					xhr.withCredentials = true;
+					xhr.setRequestHeader('Content-Type', 'application/json');
+					xhr.send(JSON.stringify({winner:winnerId, participants:participantsID}));
+					xhr.onload = function() {
+						if (xhr.status != 200) { // analyze HTTP status of the response
+							console.log('Error'+xhr.status+':'+xhr.statusText);
+						} else { // show the result
+							//console.log(xhr.response);
+							//On récupère les users mis à jour
+							getUsers();
+						}
+					};
+				}				
             }
             
             function computeSegments(){
@@ -169,22 +185,45 @@
 				var totalPourcentage = 0;
 				
 				for(var j=0; j<listBizDevTeam.length; j++){
-					nbPoints +=listBizDevTeam[j].valeur;
+					nbPoints +=listBizDevTeam[j].wheel_value;
 				}
 				
 				for(var j=0; j<listBizDevTeam.length; j++){
 					if(j <listBizDevTeam.length-1){
-						var pourcentage = (listBizDevTeam[j].valeur/nbPoints)*360;
+						var pourcentage = (listBizDevTeam[j].wheel_value/nbPoints)*360;
 					}else{
 						var pourcentage = (360-totalPourcentage);
 					}
-					var candidat = {'text':listBizDevTeam[j].nom, 'size': pourcentage, 'fillStyle' : listBizDevTeam[j].couleur, 'id':j}
+					var candidat = {'text':listBizDevTeam[j].first_name, 'size': pourcentage, 'fillStyle' : listBizDevTeam[j].color, 'id':listBizDevTeam[j].id}
 					mySegments.push(candidat);
 					totalPourcentage+=pourcentage;
 				}
 				return mySegments;
 			}
-            
+			
+			function getUsers(){
+				
+				if(mode === "NO_DB"){					
+					//Simulate Data when no DB integration
+					listBizDevTeam = [{"id":1,"first_name":"C","last_name":"R","wheel_value":20,"color":"#F07D88"},{"id":2,"first_name":"s","last_name":"r","wheel_value":7,"color":"#FFF00F"},{"id":3,"first_name":"JR","last_name":"C","wheel_value":9,"color":"#F00FFF"}];
+				}else{
+					let xhr = new XMLHttpRequest();
+					xhr.open('GET', url, true);
+					xhr.withCredentials = true;
+					xhr.send(null);
+					xhr.onload = function() {
+						if (xhr.status != 200) { // analyze HTTP status of the response
+							console.log('Error'+xhr.status+':'+xhr.statusText);						
+						} else { // show the result
+							let users = JSON.parse(xhr.response);
+							listBizDevTeam = users;
+						}	
+					};
+					console.log(JSON.stringify(listBizDevTeam));
+				}
+			}
+			
+			
         </script>
     </body>
 </html>
