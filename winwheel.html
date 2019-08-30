@@ -28,6 +28,7 @@
     <head>
         <title>La roue de la ligne chaude</title>
         <link rel="stylesheet" href="misc/main.css" type="text/css" />
+        <link rel="stylesheet" href="misc/custom.css" type="text/css" />
         <script type="text/javascript" src="./misc/Winwheel.js"></script>
         <script type="text/javascript" src="./misc/TweenMax.min.js"></script><!--http://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js -->
     </head>
@@ -37,6 +38,10 @@
             <br />
             <table cellpadding="0" cellspacing="0" border="0">
                 <tr>
+					<td>
+						<ul id="activList">
+						</ul>
+					</td>					
                     <td>
                         <div class="power_controls">
                             <br />
@@ -57,11 +62,19 @@
 			const mode = "NO_DB";
 			let theWheel; 
 			let listBizDevTeam;
+			let listParticipants;
+			let idParticipants;
 			const url = "http://localhost:81/api/users/hotline";	
   			getUsers();
 			//[{"id":1,"first_name":"C","last_name":"R","wheel_value":20,"color":"#F07D88"},{"id":2,"first_name":"s","last_name":"r","wheel_value":7,"color":"#FFF00F"},{"id":3,"first_name":"JR","last_name":"C","wheel_value":9,"color":"#F00FFF"}]
 			
 			function createWheel(){
+				if(idParticipants.length <2){
+					console.log("pas assez de personnes:"+idParticipants.length);
+					console.log(idParticipants);
+					return false;
+				}
+				
 				// Create new wheel object specifying the parameters at creation time.
 				theWheel = new Winwheel({
 					'numSegments'       : listBizDevTeam.length,         // Specify number of segments.
@@ -179,30 +192,41 @@
             }
             
             function computeSegments(){
-				var mySegments =[];
-				var nbCandidats = listBizDevTeam.length;
-				var nbPoints = 0;
-				var totalPourcentage = 0;
-				
-				for(var j=0; j<listBizDevTeam.length; j++){
-					nbPoints +=listBizDevTeam[j].wheel_value;
+				//On créé la liste des participants à partir des ID séléctionnés				
+				listParticipants = [];
+				for(let i=0; i< listBizDevTeam.length; i++){					
+					let index = idParticipants.indexOf(listBizDevTeam[i].id);
+					if (index !== -1) { 
+						listParticipants.push(listBizDevTeam[i]);						
+					}
 				}
-				
-				for(var j=0; j<listBizDevTeam.length; j++){
-					if(j <listBizDevTeam.length-1){
-						var pourcentage = (listBizDevTeam[j].wheel_value/nbPoints)*360;
+				//Calcul des proportions				
+				var mySegments =[];
+				var nbCandidats = listParticipants.length;
+				var nbPoints = 0;
+				var totalPourcentage = 0;				
+				for(var j=0; j<listParticipants.length; j++){
+					nbPoints +=listParticipants[j].wheel_value;
+				}
+				//Construction des segments
+				for(var j=0; j<listParticipants.length; j++){
+					if(j <listParticipants.length-1){
+						var pourcentage = (listParticipants[j].wheel_value/nbPoints)*360;
 					}else{
 						var pourcentage = (360-totalPourcentage);
 					}
-					var candidat = {'text':listBizDevTeam[j].first_name, 'size': pourcentage, 'fillStyle' : listBizDevTeam[j].color, 'id':listBizDevTeam[j].id}
+					var candidat = {'text':listParticipants[j].first_name, 'size': pourcentage, 'fillStyle' : listParticipants[j].color, 'id':listParticipants[j].id}
 					mySegments.push(candidat);
 					totalPourcentage+=pourcentage;
 				}
 				return mySegments;
 			}
 			
+			/** Get all the users and display them so we can set who's here today
+			 * 
+			 */
 			function getUsers(){
-				
+				idParticipants = [];
 				if(mode === "NO_DB"){					
 					//Simulate Data when no DB integration
 					listBizDevTeam = [{"id":1,"first_name":"C","last_name":"R","wheel_value":20,"color":"#F07D88"},{"id":2,"first_name":"s","last_name":"r","wheel_value":7,"color":"#FFF00F"},{"id":3,"first_name":"JR","last_name":"C","wheel_value":9,"color":"#F00FFF"}];
@@ -215,11 +239,35 @@
 						if (xhr.status != 200) { // analyze HTTP status of the response
 							console.log('Error'+xhr.status+':'+xhr.statusText);						
 						} else { // show the result
-							let users = JSON.parse(xhr.response);
-							listBizDevTeam = users;
+							listBizDevTeam = JSON.parse(xhr.response);
 						}	
-					};
-					console.log(JSON.stringify(listBizDevTeam));
+					};					
+				}
+				console.log(JSON.stringify(listBizDevTeam));
+				let ulData = "";
+				for(let u=0; u<listBizDevTeam.length; u++){									
+					let elt = document.createElement('li');
+					elt.innerHTML = listBizDevTeam[u].first_name+" "+listBizDevTeam[u].last_name ; 
+					elt.id = 'li-'+listBizDevTeam[u].id;
+					elt.className = 'activ';
+					elt.onclick = function(){ changeState(listBizDevTeam[u].id); };
+					document.getElementById('activList').appendChild(elt);
+					idParticipants.push(listBizDevTeam[u].id); 
+				}
+				
+			}
+			
+			function changeState(id){
+				var currentElt = document.getElementById('li-'+id);
+				if(currentElt.className == "activ"){
+					currentElt.className = "notActiv";
+					let index = idParticipants.indexOf(id);
+					if (index !== -1) { 
+						idParticipants.splice(index, 1);
+					}
+				}else{					
+					currentElt.className = "activ";
+					idParticipants.push(id);
 				}
 			}
 			
