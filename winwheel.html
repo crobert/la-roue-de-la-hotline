@@ -34,22 +34,28 @@
     </head>
     <body>
         <div align="center">
-            <h1>Who's in charge of the ligne chaude today ? </h1>
+            <h1>Who's in charge of the ligne chaude today ? <span id="Winner"></span></h1>
             <br />
             <table cellpadding="0" cellspacing="0" border="0">
+				<tr>
+				<td colspan="2"></td>				
+					<div class="power_controls">
+						<button onClick="createWheel();" id="wheelBuilder" >Générer la roue</button>
+						<button onClick="startSpin();" id="wheelSpinner" class="notActiv" >Spiner la roue</button>
+						<button onClick="validateSpin();" id="wheelOK" style="display:none;" >Valider</button>
+					</div>
+				</tr>
                 <tr>
-					<td>
+					<td id="participantsCell">
+						<h3>Choix des participants</h3>
 						<ul id="activList">
 						</ul>
-					</td>					
-                    <td>
-                        <div class="power_controls">
-                            <br />
-                            <img id="spin_button" src="misc/spin_off.png" alt="Spin" onClick="startSpin();" />
-                            <br /><br />
-                            <img id="spin_button" src="misc/spin_on.png" alt="Spin" onClick="createWheel();" />
-                        </div>
-                    </td>
+						<h3>Mode équiprobable</h3>
+						<label class="switch">
+							<input type="checkbox" id="wheelMode">
+							<span class="slider round" onClick="changeMode()"></span>
+						</label>
+					</td>
                     <td width="318" height="418" class="the_wheel" align="center" valign="center">
                         <canvas id="canvas" width="315" height="418">
                             <p style="{color: white}" align="center">Sorry, your browser doesn't support canvas. Please try another.</p>
@@ -59,19 +65,23 @@
             </table>
         </div>
         <script>
-			const mode = "NO_DB";
+			const configuration = "NO_DB";
+			let wheelMode = "default";
 			let theWheel; 
+            let wheelSpinning = false;	
 			let listBizDevTeam;
 			let listParticipants;
 			let idParticipants;
 			const url = "http://localhost:81/api/users/hotline";	
+            const audioTick = new Audio('misc/tick.mp3');  // Create audio object and load tick.mp3 file.
   			getUsers();
 			//[{"id":1,"first_name":"C","last_name":"R","wheel_value":20,"color":"#F07D88"},{"id":2,"first_name":"s","last_name":"r","wheel_value":7,"color":"#FFF00F"},{"id":3,"first_name":"JR","last_name":"C","wheel_value":9,"color":"#F00FFF"}]
 			
+			//Construit la roue à partir des participants qui sont sélectionnés
 			function createWheel(){
 				if(idParticipants.length <2){
+					alert("Il faut au moins deux participants pour pouvoir tourner la roue"); 
 					console.log("pas assez de personnes:"+idParticipants.length);
-					console.log(idParticipants);
 					return false;
 				}
 				
@@ -94,27 +104,33 @@
 						'spins'    : 2,//15,     // Number of complete spins.
 						'callbackFinished' : alertPrize,
 						'callbackSound'    : playSound,   // Function to call when the tick sound is to be triggered.
-						'soundTrigger'     : 'segment'        // Specify segments are to trigger the sound, the other option is 'pin'.
+						'soundTrigger'     : 'pin'        // Specify segments are to trigger the sound, the options are 'pin' or 'segment'.
+					},
+					'pins' :
+					{
+						'number' : 16   // Number of pins. They space evenly around the wheel.
 					}
-				});
+				});	
+                document.getElementById('wheelSpinner').className = "activ";
+				document.getElementById('wheelOK').style.display = "none";	
+                wheelSpinning = false;
 			}
            
-            // Vars used by the code in this page to do power controls.
-            let wheelPower    = 0;
-            let wheelSpinning = false;
-
+ 
             // -------------------------------------------------------
             // Click handler for spin button.
             // -------------------------------------------------------
             function startSpin()
             {
+				if(document.getElementById('wheelSpinner').className == "notActiv"){
+					//On ne fait rien 
+					return;
+				}
 				// Ensure that spinning can't be clicked again while already running.
-                if (wheelSpinning == false) {    
+                if (wheelSpinning == false) { 
 					resetWheel();
                     // Disable the spin button so can't click again while wheel is spinning.
-                    document.getElementById('spin_button').src       = "misc/spin_off.png";
-                    document.getElementById('spin_button').className = "";
-
+					document.getElementById('wheelSpinner').className = "notActiv";
                     // Begin the spin animation by calling startAnimation on the wheel object.
                     theWheel.startAnimation();
 
@@ -127,16 +143,15 @@
             // This function is called when the segment under the prize pointer changes
             // we can play a small tick sound here like you would expect on real prizewheels.
             // -----------------------------------------------------------------
-            let audio = new Audio('misc/tick.mp3');  // Create audio object and load tick.mp3 file.
 
             function playSound()
             {
                 // Stop and rewind the sound if it already happens to be playing.
-                audio.pause();
-                audio.currentTime = 0;
+                audioTick.pause();
+                audioTick.currentTime = 0;
 
                 // Play the sound.
-                audio.play();
+                audioTick.play();
             }
             // -------------------------------------------------------
             // Function for reset button.
@@ -156,24 +171,32 @@
             // -------------------------------------------------------
             function alertPrize(indicatedSegment)
             {
-                // Do basic alert of the segment text. You would probably want to do something more interesting with this information.
-                //alert("The wheel stopped on " + indicatedSegment.text);
-                wheelSpinning = false;  
+				//On indique qui est l'heureux élu à l'utilisateur, on attend sa validation avant de pousser les modifs en base
+				document.getElementById('Winner').innerHTML = indicatedSegment.text;
+				if(wheelMode == "default"){
+					document.getElementById('wheelOK').style.display = "inline-block";
+				}else{
+					wheelSpinning = false;
+					document.getElementById('wheelSpinner').className = "activ";
+					document.getElementById('wheelOK').style.display = "none";
+				}
+            }
+            
+            function validateSpin(){
+				// L'API attend la liste du gagnant et un tableau des autres participants
+                // le calcul des nouvelles pondérations se fait dans le back, on récupère ensuite les nouvelles valeurs
                 let nbPersonne = listBizDevTeam.length;
-                //var ratio = 1/(nbPersonne-1);
                 let winnerId; 
 				let participantsID = [];
 				var winner = theWheel.getIndicatedSegmentNumber();
 				for (let x = 1; x < theWheel.segments.length; x ++) {
 					if(x == winner){
 						winnerId = theWheel.segments[x].id;
-						//listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur - nbPersonne +1;
 					}else{
 						participantsID.push( theWheel.segments[x].id);
-						//listBizDevTeam[theWheel.segments[x].id].valeur = listBizDevTeam[theWheel.segments[x].id].valeur + 1;						
 					}
 				}
-				if(mode !== "NO_DB"){
+				if(configuration !== "NO_DB"){
 					let xhr = new XMLHttpRequest();
 					xhr.open('POST', url, true);
 					xhr.withCredentials = true;
@@ -182,15 +205,18 @@
 					xhr.onload = function() {
 						if (xhr.status != 200) { // analyze HTTP status of the response
 							console.log('Error'+xhr.status+':'+xhr.statusText);
-						} else { // show the result
-							//console.log(xhr.response);
-							//On récupère les users mis à jour
+						} else { 
+							//On récupère les utilisateurs mis à jour
 							getUsers();
 						}
 					};
-				}				
-            }
+				}
+				wheelSpinning = false;
+                document.getElementById('wheelSpinner').className = "activ";
+				document.getElementById('wheelOK').style.display = "none";		
+			}
             
+                        
             function computeSegments(){
 				//On créé la liste des participants à partir des ID séléctionnés				
 				listParticipants = [];
@@ -215,20 +241,22 @@
 					}else{
 						var pourcentage = (360-totalPourcentage);
 					}
-					var candidat = {'text':listParticipants[j].first_name, 'size': pourcentage, 'fillStyle' : listParticipants[j].color, 'id':listParticipants[j].id}
+					if(wheelMode == "default"){
+						var candidat = {'text':listParticipants[j].first_name, 'size': pourcentage, 'fillStyle' : listParticipants[j].color, 'id':listParticipants[j].id};
+					}else{
+						var candidat = {'text':listParticipants[j].first_name, 'fillStyle' : listParticipants[j].color, 'id':listParticipants[j].id};
+					}
 					mySegments.push(candidat);
 					totalPourcentage+=pourcentage;
 				}
 				return mySegments;
 			}
 			
-			/** Get all the users and display them so we can set who's here today
-			 * 
-			 */
+			//Récupération des utilisateurs depuis l'API, construction de la liste des participants
 			function getUsers(){
 				idParticipants = [];
-				if(mode === "NO_DB"){					
-					//Simulate Data when no DB integration
+				if(configuration === "NO_DB"){					
+					//Données de démo quand on est en mode déconnecté, sans l'API
 					listBizDevTeam = [{"id":1,"first_name":"C","last_name":"R","wheel_value":20,"color":"#F07D88"},{"id":2,"first_name":"s","last_name":"r","wheel_value":7,"color":"#FFF00F"},{"id":3,"first_name":"JR","last_name":"C","wheel_value":9,"color":"#F00FFF"}];
 				}else{
 					let xhr = new XMLHttpRequest();
@@ -236,14 +264,14 @@
 					xhr.withCredentials = true;
 					xhr.send(null);
 					xhr.onload = function() {
-						if (xhr.status != 200) { // analyze HTTP status of the response
+						if (xhr.status != 200) { 
 							console.log('Error'+xhr.status+':'+xhr.statusText);						
-						} else { // show the result
+						} else {
 							listBizDevTeam = JSON.parse(xhr.response);
 						}	
 					};					
 				}
-				console.log(JSON.stringify(listBizDevTeam));
+				
 				let ulData = "";
 				for(let u=0; u<listBizDevTeam.length; u++){									
 					let elt = document.createElement('li');
@@ -254,7 +282,6 @@
 					document.getElementById('activList').appendChild(elt);
 					idParticipants.push(listBizDevTeam[u].id); 
 				}
-				
 			}
 			
 			function changeState(id){
@@ -269,11 +296,14 @@
 					currentElt.className = "activ";
 					idParticipants.push(id);
 				}
-			}
-			
-			
+			}	
+			function changeMode() {
+				if(wheelMode == "default"){
+					wheelMode = "equiproba";
+				}else{
+					wheelMode = "default";
+				}
+			}	
         </script>
     </body>
 </html>
-<!--file:///C:/Users/crced/Documents/dev/hotline/index.html#
-http://dougtesting.net/winwheel/docs/tut5_add_remove_segments-->
